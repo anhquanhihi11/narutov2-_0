@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>TFT LIVE MATCH TRACKER PRO</title>
+    <style>
+        :root {
+            --bg-main: #03060e;
+            --panel-bg: rgba(10, 17, 34, 0.95);
+            --border-neon: #00f0ff;
+            --gold: #c8aa6e;
+            --hp-green: #10ac84;
+            --hp-red: #ee5253;
+            --text-light: #f1f5f9;
+        }
+
+        * { box-sizing: border-box; font-family: system-ui, -apple-system, sans-serif; }
+        body {
+            background: radial-gradient(circle at top, #0d1b3e 0%, var(--bg-main) 100%);
+            color: var(--text-light);
+            margin: 0; padding: 10px;
+            min-height: 100vh;
+        }
+
+        /* Header công nghệ */
+        .live-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            border-bottom: 2px solid rgba(0, 240, 255, 0.3);
+            background: rgba(0,0,0,0.4);
+            border-radius: 8px;
+            margin-bottom: 12px;
+        }
+        .live-badge {
+            background: #ff2222;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: bold;
+            animation: blink 1.5s infinite;
+        }
+
+        /* Bố cục Grid tối ưu theo dõi */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 12px;
+            padding: 15px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.5);
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: ''; position: absolute; top:0; left:0; width: 4px; height: 100%; background: var(--border-neon);
+        }
+
+        /* 1. KHU VỰC QUẢN LÝ TRẬN ĐẤU THỰC (REAL-TIME STATUS) */
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+        .status-box {
+            flex: 1;
+            background: rgba(255,255,255,0.03);
+            border: 1px solid rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 8px;
+            text-align: center;
+        }
+        .status-value { font-size: 22px; font-weight: bold; color: var(--gold); }
+        .status-label { font-size: 11px; color: #64748b; text-transform: uppercase; margin-top: 4px;}
+
+        /* Thanh máu của bạn */
+        .hp-bar-container {
+            background: #1e293b; height: 12px; border-radius: 6px; overflow: hidden; margin: 10px 0;
+        }
+        .hp-bar-fill {
+            height: 100%; width: 100%; background: linear-gradient(90deg, var(--hp-red), var(--hp-green));
+            transition: width 0.3s ease;
+        }
+
+        /* Bộ điều khiển Round đấu */
+        .round-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            margin-top: 15px;
+        }
+        .btn-round {
+            flex: 1; padding: 10px; font-weight: bold; border-radius: 6px; border: none; cursor: pointer;
+        }
+        .btn-win { background: rgba(16, 172, 132, 0.2); color: var(--hp-green); border: 1px solid var(--hp-green); }
+        .btn-lose { background: rgba(238, 82, 83, 0.2); color: var(--hp-red); border: 1px solid var(--hp-red); }
+
+        /* 2. CHẨN ĐOÁN & GỢI Ý CHIẾN THUẬT THEO ROUND (LIVE AI COUNSEL) */
+        .ai-suggestion-box {
+            background: rgba(0, 240, 255, 0.05);
+            border: 1px dashed var(--border-neon);
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 10px;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        /* 3. THƯ VIỆN ĐỘI HÌNH META KHUYÊN DÙNG */
+        .meta-title { font-size: 14px; color: var(--gold); font-weight: bold; margin-bottom: 10px; text-transform: uppercase;}
+        .strategy-card {
+            background: rgba(255,255,255,0.02);
+            border: 1px solid rgba(255,255,255,0.05);
+            border-radius: 8px; padding: 12px; margin-bottom: 8px;
+        }
+        .flex-space { display: flex; justify-content: space-between; align-items: center; }
+        .tier-tag { background: #ff4d4d; color: black; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 4px; }
+
+        .champ-track-line { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+        .champ-node { background: #151f32; padding: 3px 6px; border-radius: 4px; font-size: 11px; border: 1px solid #2d3d5a; }
+        .champ-node.core { border-color: var(--gold); color: var(--gold); }
+
+        /* Lịch sử trận đấu bên dưới */
+        .log-box {
+            max-height: 100px; overflow-y: auto; font-size: 11px; color: #94a3b8; background: rgba(0,0,0,0.3); padding: 8px; border-radius: 6px; margin-top: 10px;
+        }
+
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }
+        
+        /* Ẩn hiện menu */
+        .hidden { display: none !important; }
+        .toggle-menu-btn { width: 100%; padding: 10px; background: #1e293b; color: white; border: none; border-radius: 8px; font-weight: bold; margin-bottom: 10px; cursor: pointer;}
+    </style>
+</head>
+<body>
+
+    <!-- Giao diện tiêu đề -->
+    <div class="live-header">
+        <div>
+            <span style="font-weight: bold; font-size: 16px; color: var(--gold);">TFT LIVE TRACKER</span>
+            <div style="font-size: 10px; color: #64748b;">Đồng bộ dữ liệu trận đấu thực tế</div>
+        </div>
+        <div class="live-badge">LIVE MATCHING</div>
+    </div>
+
+    <!-- Nút Ẩn/Hiện nhanh cẩm nang để tập trung vào trận đấu -->
+    <button class="toggle-menu-btn" onclick="toggleMetaPanel()">👁️ Ẩn/Hiện Tham Khảo Đội Hình Meta</button>
+
+    <div class="dashboard-grid">
+
+        <!-- THÀNH PHẦN 1: BẢNG THEO DÕI TRẬN ĐẤU THỰC TẾ (BẠN ĐANG CHƠI) -->
+        <div class="card">
+            <div class="flex-space">
+                <span style="font-weight: bold; color: var(--border-neon);">TRẠNG THÁI TRẬN ĐẤU HIỆN TẠI</span>
+                <span id="display-stage" style="font-weight: bold; font-size: 16px; color: var(--gold);">STAGE: 2-1</span>
+            </div>
+
+            <!-- Thanh máu trực quan -->
+            <div style="display: flex; justify-content: space-between; font-size: 12px; margin-top: 10px;">
+                <span>Máu của bạn: <b id="hp-text" style="color: var(--hp-green);">100</b>/100</span>
+                <span id="streak-text" style="color: #94a3b8;">Chuỗi: 0</span>
+            </div>
+            <div class="hp-bar-container">
+                <div class="hp-bar-fill" id="hp-bar"></div>
+            </div>
+
+            <!-- Chỉ số vàng và cấp độ -->
+            <div class="status-row">
+                <div class="status-box">
+                    <div class="status-value" id="current-gold">50+</div>
+                    <div class="status-label">Lợi Tức Gợi Ý</div>
+                </div>
+                <div class="status-box">
+                    <div class="status-value" id="match-winrate">85%</div>
+                    <div class="status-label">Tỷ Lệ Vào Top</div>
+                </div>
+            </div>
+
+            <!-- AI CHẨN ĐOÁN CHIẾN THUẬT DỰA TRÊN ROUND THỰC TẾ -->
+            <div class="ai-suggestion-box">
+                <b>🤖 Trợ lý phân tích:</b> <span id="ai-advice">Vòng 2-1: Hãy quyết định up cấp 4 nếu muốn giữ chuỗi thắng, hoặc giữ nguyên cấp 3 tích tiền nếu form bài yếu.</span>
+            </div>
+
+            <!-- Bộ nút bấm sau mỗi Round đấu (Bấm ngay khi kết thúc round trên game) -->
+            <div class="round-controls">
+                <button class="btn-round btn-win" onclick="recordRound(true)">🟢 THẮNG ROUND</button>
+                <button class="btn-round btn-lose" onclick="recordRound(false)">🔴 THUA ROUND</button>
+            </div>
+
+            <!-- Log diễn biến trận đấu -->
+            <div class="log-box" id="match-log">
+                [Hệ thống] Trận đấu mới bắt đầu. Chúc bạn leo rank thành công!<br>
+            </div>
+        </div>
+
+        <!-- THÀNH PHẦN 2: THƯ VIỆN SÁCH BÀI META DÙNG ĐỂ XOAY BÀI (PIVOT) -->
+        <div class="card" id="metaPanel">
+            <div class="meta-title">Xu Hướng Meta 17.3 (Bản vá mới nhất)</div>
+            
+            <!-- Đội hình 1 -->
+            <div class="strategy-card">
+                <div class="flex-space">
+                    <b>Pháp Sư Định Mệnh</b>
+                    <span class="tier-tag">Tier S+</span>
+                </div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Thời điểm chốt bài: Có nhiều Gậy Quá Khổ / Nước Mắt trước Stage 3-2.</div>
+                <div class="champ-track-line">
+                    <span class="champ-node core">Ahri (Carry)</span>
+                    <span class="champ-node core">Syndra (Sát thương)</span>
+                    <span class="champ-node">Thresh</span>
+                    <span class="champ-node">Sett</span>
+                    <span class="champ-node">Illaoi (Tank)</span>
+                </div>
+            </div>
+
+            <!-- Đội hình 2 -->
+            <div class="strategy-card">
+                <div class="flex-space">
+                    <b>Sử Gia Long Vương</b>
+                    <span class="tier-tag" style="background: #ff9f43;">Tier S</span>
+                </div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Thời điểm chốt bài: Lên được Sivir 2 sao sớm hoặc có Ấn Sử Gia ở vòng chọn lõi.</div>
+                <div class="champ-track-line">
+                    <span class="champ-node core">Irelia (Late Carry)</span>
+                    <span class="champ-node core">Galio (Main Tank)</span>
+                    <span class="champ-node">Riven</span>
+                    <span class="champ-node">Garen</span>
+                    <span class="champ-node">Lee Sin</span>
+                </div>
+            </div>
+
+            <!-- Đội hình 3 -->
+            <div class="strategy-card">
+                <div class="flex-space">
+                    <b>Khổng Lồ Thuật Sĩ</b>
+                    <span class="tier-tag" style="background: #10ac84;">Tier A+</span>
+                </div>
+                <div style="font-size: 11px; color: #94a3b8; margin-top: 4px;">Thời điểm chốt bài: Bài đấu ra nhiều nước mắt, chuỗi thua lấy đồ sớm chợ.</div>
+                <div class="champ-track-line">
+                    <span class="champ-node core">Hwei (AoE Carry)</span>
+                    <span class="champ-node core">Annie (Solo Tank)</span>
+                    <span class="champ-node">Nautilus</span>
+                    <span class="champ-node">Lillia</span>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // Các biến lưu trữ dữ liệu trận đấu thực tế của bạn
+        let currentStage = 2;
+        let currentRound = 1;
+        let myHP = 100;
+        let currentStreak = 0;
+        let streakType = ""; // "win" hoặc "lose"
+
+        const aiAdvices = {
+            2: "Giai đoạn Stage 2: Tập trung xây dựng form bài thô, ưu tiên ghép các trang bị đa dụng như Áo Choàng Lửa, Dao Điện để giữ máu.",
+            3: "Giai đoạn Stage 3: Roll nhẹ ở 3-2 nếu bạn đang thấp máu để ổn định đội hình 2 sao. Bắt đầu định hình hướng đi theo trang bị đang có.",
+            4: "Giai đoạn Stage 4: Vòng 4-1 hoặc 4-2 là thời điểm bắt buộc phải lên cấp 8 và Xả Tiền (Roll cạn) để tìm kiếm các vị tướng 4 tiền chủ lực.",
+            5: "Giai đoạn Tàn Cuộc: Sắp xếp vị trí (Positioning) là yếu tố quyết định. Hãy chú ý né Thốc Gió, Áo Choàng Tĩnh Lặng và đặt Tanker đối diện Carry địch."
+        };
+
+        // Ghi nhận kết quả sau mỗi round đấu thực
+        function recordRound(isWin) {
+            // Tính toán máu
+            if (!isWin) {
+                let damage = 2 + (currentStage * 2); // Sát thương tăng tiến theo stage
+                myHP -= damage;
+                if (myHP < 0) myHP = 0;
+            }
+
+            // Tính toán chuỗi thắng / thua
+            if (isWin) {
+                if (streakType === "win") { currentStreak++; } 
+                else { currentStreak = 1; streakType = "win"; }
+            } else {
+                if (streakType === "lose") { currentStreak++; } 
+                else { currentStreak = 1; streakType = "lose"; }
+            }
+
+            // Cập nhật giao diện hiển thị
+            document.getElementById('hp-text').innerText = myHP;
+            document.getElementById('hp-bar').style.width = myHP + "%";
+            
+            // Thay đổi màu sắc cảnh báo máu
+            if(myHP < 40) {
+                document.getElementById('hp-text').style.color = "var(--hp-red)";
+                document.getElementById('match-winrate').innerText = "35%";
+            } else if (myHP < 70) {
+                document.getElementById('hp-text').style.color = "var(--gold)";
+                document.getElementById('match-winrate').innerText = "60%";
+            }
+
+            document.getElementById('streak-text').innerText = `Chuỗi: ${currentStreak} ${streakType === "win" ? "Thắng 🔥" : "Thua ❄️"}`;
+
+            // Ghi Log lịch sử
+            const logBox = document.getElementById('match-log');
+            logBox.innerHTML += `[Round ${currentStage}-${currentRound}] Kết quả: ${isWin ? "<span style='color:var(--hp-green)'>Thắng</span>" : "<span style='color:var(--hp-red)'>Thua</span>"}. Máu còn lại: ${myHP}<br>`;
+            logBox.scrollTop = logBox.scrollHeight;
+
+            // Tự động nhảy tiến trình Round đấu tiếp theo
+            nextRound();
+        }
+
+        // Đẩy tiến trình trận đấu lên theo quy luật của game TFT
+        function nextRound() {
+            currentRound++;
+            // Quy luật round đấu thông thường của TFT (tối đa 6 round người đấu rồi đến round quái)
+            if (currentRound > 6) {
+                currentRound = 1;
+                currentStage++;
+            }
+
+            document.getElementById('display-stage').innerText = `STAGE: ${currentStage}-${currentRound}`;
+            
+            // Cập nhật lời khuyên AI thông minh theo Stage thực tế
+            if (aiAdvices[currentStage]) {
+                document.getElementById('ai-advice').innerText = aiAdvices[currentStage];
+            }
+
+            // Gợi ý quản lý tiền tệ tối ưu theo tiến trình
+            if (currentStage >= 4) {
+                document.getElementById('current-gold').innerText = "Roll Ôn Định";
+            } else {
+                document.getElementById('current-gold').innerText = "Tích 50+ Vàng";
+            }
+
+            // Kiểm tra kết thúc game
+            if (myHP <= 0) {
+                alert("Bạn đã hết máu! Trận đấu kết thúc. Hệ thống ghi nhận thứ hạng!");
+                resetGame();
+            }
+        }
+
+        function resetGame() {
+            myHP = 100; currentStage = 2; currentRound = 1; currentStreak = 0; streakType = "";
+            document.getElementById('hp-text').style.color = "var(--hp-green)";
+            document.getElementById('hp-text').innerText = "100";
+            document.getElementById('hp-bar').style.width = "100%";
+            document.getElementById('display-stage').innerText = "STAGE: 2-1";
+            document.getElementById('match-log').innerHTML = "[Hệ thống] Trận đấu mới bắt đầu.<br>";
+        }
+
+        // Ẩn hiện panel Meta để tập trung theo dõi trận đấu thực
+        function toggleMetaPanel() {
+            document.getElementById('metaPanel').classList.toggle('hidden');
+        }
+    </script>
+</body>
+</html>
